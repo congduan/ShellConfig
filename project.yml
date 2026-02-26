@@ -1,0 +1,39 @@
+name: ShellConfigManager
+options:
+  bundleIdPrefix: com.shellconfig
+  deploymentTarget:
+    macOS: "12.0"
+  xcodeVersion: "15.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MACOSX_DEPLOYMENT_TARGET: "12.0"
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Automatic
+    PRODUCT_NAME: ShellConfigManager
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+targets:
+  ShellConfigManager:
+    type: application
+    platform: macOS
+    sources:
+      - path: ShellConfigManager
+        excludes:
+          - "**/.DS_Store"
+    settings:
+      base:
+        INFOPLIST_FILE: ShellConfigManager/Resources/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.shellconfig.manager
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        COMBINE_HIDPI_IMAGES: YES
+        LD_RUNPATH_SEARCH_PATHS:
+          - $(inherited)
+          - "@executable_path/../Frameworks"
+    entitlements:
+      path: ShellConfigManager/Resources/ShellConfigManager.entitlements
+      properties:
+        com.apple.security.app-sandbox: false
