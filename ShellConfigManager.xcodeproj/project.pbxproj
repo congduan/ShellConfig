@@ -7,12 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0A55694B604C99CC599C3AB2 /* AddConfigItemSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC91E5B97D5BAAADC9363A8E /* AddConfigItemSheet.swift */; };
 		0E7F29E29B66E3BF6BA657D3 /* ShellListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5F8E8F7128E13E3351582B1 /* ShellListViewModel.swift */; };
 		43958FFA976BB78C713FC82C /* ShellConfigManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D853EA176EBFDBCE1D6F787C /* ShellConfigManager.swift */; };
 		541C6B005EE7A716DDFB150B /* EnvVariable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 591F07FC8BC1735E2300E2CC /* EnvVariable.swift */; };
 		5AB191967D6795431E4D8032 /* EnvVariableViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C7CF6D8CF3510D91F4A39E /* EnvVariableViewModel.swift */; };
 		5C680D103947D467572B2D9F /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8791C383FFBF5712AFFA730 /* SidebarView.swift */; };
 		677EB8D49A934B8B2C3AD06A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 08D3CFB217D4B005820D11A1 /* Assets.xcassets */; };
+		6F7081E9B6B6A278D4C37774 /* ConfigFileEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A70758442E35FC4C7C72A296 /* ConfigFileEditor.swift */; };
 		790B8254D0C64931A7C89919 /* ShellConfigManagerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC7C2C343E1F37E2A8911DC1 /* ShellConfigManagerApp.swift */; };
 		A79900300046DD3ACF9E70EE /* EnvVariableListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC3B517C00BA0E62A2D275CE /* EnvVariableListView.swift */; };
 		BA883120E7FC8CB6FF132F58 /* EnvVariableRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89DFB6195742B9876BBACA06 /* EnvVariableRowView.swift */; };
@@ -31,10 +33,12 @@
 		591F07FC8BC1735E2300E2CC /* EnvVariable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvVariable.swift; sourceTree = "<group>"; };
 		89DFB6195742B9876BBACA06 /* EnvVariableRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvVariableRowView.swift; sourceTree = "<group>"; };
 		93696D510C9D1FD2101B368E /* ConfigFileParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigFileParser.swift; sourceTree = "<group>"; };
+		A70758442E35FC4C7C72A296 /* ConfigFileEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigFileEditor.swift; sourceTree = "<group>"; };
 		A789BCC62CA7A7061E31AD01 /* ConfigFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigFile.swift; sourceTree = "<group>"; };
 		BF1C33C46CC3A45D9AD99820 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C5F8E8F7128E13E3351582B1 /* ShellListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellListViewModel.swift; sourceTree = "<group>"; };
 		CC7C2C343E1F37E2A8911DC1 /* ShellConfigManagerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellConfigManagerApp.swift; sourceTree = "<group>"; };
+		CC91E5B97D5BAAADC9363A8E /* AddConfigItemSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddConfigItemSheet.swift; sourceTree = "<group>"; };
 		CCAEA41CD56F32730BF1B0E2 /* ShellConfigManager.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShellConfigManager.entitlements; sourceTree = "<group>"; };
 		D853EA176EBFDBCE1D6F787C /* ShellConfigManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellConfigManager.swift; sourceTree = "<group>"; };
 		D8791C383FFBF5712AFFA730 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
@@ -47,6 +51,7 @@
 		3739A350FD13E35BA5E01029 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				CC91E5B97D5BAAADC9363A8E /* AddConfigItemSheet.swift */,
 				17EB49380737DFA8DD1DE0F2 /* ContentView.swift */,
 				3C3C71B20297A3FC20EEC37D /* EmptyStateView.swift */,
 				DC3B517C00BA0E62A2D275CE /* EnvVariableListView.swift */,
@@ -89,6 +94,7 @@
 		82D6BD449018B0DC5084CD6C /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				A70758442E35FC4C7C72A296 /* ConfigFileEditor.swift */,
 				93696D510C9D1FD2101B368E /* ConfigFileParser.swift */,
 				D853EA176EBFDBCE1D6F787C /* ShellConfigManager.swift */,
 			);
@@ -201,7 +207,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0A55694B604C99CC599C3AB2 /* AddConfigItemSheet.swift in Sources */,
 				E2961DE3E004A084109399F7 /* ConfigFile.swift in Sources */,
+				6F7081E9B6B6A278D4C37774 /* ConfigFileEditor.swift in Sources */,
 				C2B5F24E674EC769E3BCEEE9 /* ConfigFileParser.swift in Sources */,
 				BF179AEFD995432870D2FFDD /* ContentView.swift in Sources */,
 				EED98423B047A81DC954E8FE /* EmptyStateView.swift in Sources */,

@@ -1,89 +1,227 @@
 import Foundation
 
-/// Service for parsing shell configuration files
 class ConfigFileParser {
     
-    /// Parse a shell config file and extract environment variables
     func parseFile(at path: String) -> (variables: [EnvVariable], error: String?) {
         let fileManager = FileManager.default
         
-        // Check if file exists
         guard fileManager.fileExists(atPath: path) else {
             return ([], "File not found")
         }
         
-        // Check if readable
         guard fileManager.isReadableFile(atPath: path) else {
             return ([], "Permission denied")
         }
         
-        // Read file content
         guard let content = try? String(contentsOfFile: path, encoding: .utf8) else {
             return ([], "Unable to read file")
         }
         
-        // Parse lines
         let lines = content.components(separatedBy: .newlines)
-        var variables: [EnvVariable] = []
+        var items: [EnvVariable] = []
+        var i = 0
         
-        for (index, line) in lines.enumerated() {
-            let lineNumber = index + 1
+        while i < lines.count {
+            let line = lines[i]
+            let lineNumber = i + 1
             let trimmedLine = line.trimmingCharacters(in: .whitespaces)
             
-            // Skip empty lines and comments
             if trimmedLine.isEmpty || trimmedLine.hasPrefix("#") {
+                i += 1
                 continue
             }
             
-            // Try to parse export statements
-            if let variable = parseLine(trimmedLine, lineNumber: lineNumber, fullLine: line) {
-                variables.append(variable)
+            if let item = parseLine(trimmedLine, lineNumber: lineNumber, fullLine: line, allLines: lines, currentIndex: &i) {
+                items.append(item)
+            }
+            
+            i += 1
+        }
+        
+        return (items, nil)
+    }
+    
+    private func parseLine(_ line: String, lineNumber: Int, fullLine: String, allLines: [String], currentIndex: inout Int) -> EnvVariable? {
+        var workingLine = line
+        
+        if workingLine.hasPrefix("source ") || workingLine.hasPrefix(". ") {
+            return parseSourceStatement(workingLine, lineNumber: lineNumber, fullLine: fullLine)
+        }
+        
+        if workingLine.hasPrefix("alias ") {
+            return parseAlias(workingLine, lineNumber: lineNumber, fullLine: fullLine)
+        }
+        
+        if isFunctionStart(workingLine) {
+            return parseFunction(workingLine, lineNumber: lineNumber, fullLine: fullLine, allLines: allLines, currentIndex: &currentIndex)
+        }
+        
+        if workingLine.hasPrefix("export ") {
+            workingLine = String(workingLine.dropFirst(7))
+            
+            if !workingLine.contains("=") {
+                return ConfigItem(
+                    type: .export,
+                    name: workingLine.trimmingCharacters(in: .whitespaces),
+                    value: "",
+                    lineNumber: lineNumber,
+                    rawLine: fullLine
+                )
+            }
+            
+            return parseVariable(workingLine, lineNumber: lineNumber, fullLine: fullLine, isExport: true)
+        }
+        
+        if workingLine.contains("=") {
+            return parseVariable(workingLine, lineNumber: lineNumber, fullLine: fullLine, isExport: false)
+        }
+        
+        return nil
+    }
+    
+    private func parseSourceStatement(_ line: String, lineNumber: Int, fullLine: String) -> EnvVariable? {
+        var path: String
+        
+        if line.hasPrefix("source ") {
+            path = String(line.dropFirst(7)).trimmingCharacters(in: .whitespaces)
+        } else if line.hasPrefix(". ") {
+            path = String(line.dropFirst(2)).trimmingCharacters(in: .whitespaces)
+        } else {
+            return nil
+        }
+        
+        path = removeQuotes(from: path)
+        let (cleanPath, comment) = extractComment(from: path)
+        
+        return ConfigItem(
+            type: .source,
+            name: cleanPath,
+            value: cleanPath,
+            lineNumber: lineNumber,
+            comment: comment,
+            rawLine: fullLine
+        )
+    }
+    
+    private func parseAlias(_ line: String, lineNumber: Int, fullLine: String) -> EnvVariable? {
+        let aliasContent = String(line.dropFirst(6)).trimmingCharacters(in: .whitespaces)
+        
+        guard let equalsIndex = aliasContent.firstIndex(of: "=") else {
+            return nil
+        }
+        
+        let name = String(aliasContent[..<equalsIndex]).trimmingCharacters(in: .whitespaces)
+        var value = String(aliasContent[aliasContent.index(after: equalsIndex)...]).trimmingCharacters(in: .whitespaces)
+        
+        value = removeQuotes(from: value)
+        let (cleanValue, comment) = extractComment(from: value)
+        
+        return ConfigItem(
+            type: .alias,
+            name: name,
+            value: cleanValue,
+            lineNumber: lineNumber,
+            comment: comment,
+            rawLine: fullLine
+        )
+    }
+    
+    private func isFunctionStart(_ line: String) -> Bool {
+        let patterns = [
+            "function ",
+            "() {",
+            "()\\s*{"
+        ]
+        
+        for pattern in patterns {
+            if line.contains(pattern) {
+                return true
             }
         }
         
-        return (variables, nil)
-    }
-    
-    /// Parse a single line to extract environment variable
-    private func parseLine(_ line: String, lineNumber: Int, fullLine: String) -> EnvVariable? {
-        var workingLine = line
-        var isExport = false
-        var isConditional = false
-        
-        // Check for export keyword
-        if workingLine.hasPrefix("export ") {
-            isExport = true
-            workingLine = String(workingLine.dropFirst(7))
+        if line.hasSuffix("()") {
+            return true
         }
         
-        // Check for conditional (if, case, etc.)
-        if workingLine.hasPrefix("if ") || workingLine.hasPrefix("case ") || 
+        let functionRegex = "^[a-zA-Z_][a-zA-Z0-9_]*\\s*\\(\\)\\s*\\{"
+        if let regex = try? NSRegularExpression(pattern: functionRegex),
+           let _ = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) {
+            return true
+        }
+        
+        return false
+    }
+    
+    private func parseFunction(_ line: String, lineNumber: Int, fullLine: String, allLines: [String], currentIndex: inout Int) -> EnvVariable? {
+        var functionName = ""
+        var functionBody = line
+        var braceCount = line.filter { $0 == "{" }.count - line.filter { $0 == "}" }.count
+        
+        if line.hasPrefix("function ") {
+            let namePart = String(line.dropFirst(9))
+            if let parenIndex = namePart.firstIndex(of: "(") {
+                functionName = String(namePart[..<parenIndex]).trimmingCharacters(in: .whitespaces)
+            } else if let braceIndex = namePart.firstIndex(of: "{") {
+                functionName = String(namePart[..<braceIndex]).trimmingCharacters(in: .whitespaces)
+            } else {
+                functionName = namePart.trimmingCharacters(in: .whitespaces)
+            }
+        } else {
+            if let parenIndex = line.firstIndex(of: "(") {
+                functionName = String(line[..<parenIndex]).trimmingCharacters(in: .whitespaces)
+            }
+        }
+        
+        var endLineIndex = currentIndex
+        if braceCount > 0 {
+            for j in (currentIndex + 1)..<min(allLines.count, currentIndex + 100) {
+                let nextLine = allLines[j]
+                braceCount += nextLine.filter { $0 == "{" }.count
+                braceCount -= nextLine.filter { $0 == "}" }.count
+                endLineIndex = j
+                if braceCount == 0 {
+                    break
+                }
+            }
+        }
+        
+        currentIndex = endLineIndex
+        
+        return ConfigItem(
+            type: .function,
+            name: functionName,
+            value: "Function definition (lines \(lineNumber)-\(endLineIndex + 1))",
+            lineNumber: lineNumber,
+            rawLine: fullLine
+        )
+    }
+    
+    private func parseVariable(_ line: String, lineNumber: Int, fullLine: String, isExport: Bool) -> EnvVariable? {
+        var workingLine = line
+        var isConditional = false
+        
+        if workingLine.hasPrefix("if ") || workingLine.hasPrefix("case ") ||
            workingLine.hasPrefix("while ") || workingLine.hasPrefix("for ") {
             isConditional = true
         }
         
-        // Find the first equals sign
         guard let equalsIndex = workingLine.firstIndex(of: "=") else {
             return nil
         }
         
-        // Extract variable name and value
         let namePart = workingLine[..<equalsIndex].trimmingCharacters(in: .whitespaces)
         let valuePart = workingLine[workingLine.index(after: equalsIndex)...].trimmingCharacters(in: .whitespaces)
         
-        // Validate variable name (must start with letter or underscore)
         guard let firstChar = namePart.first,
               firstChar.isLetter || firstChar == "_" else {
             return nil
         }
         
-        // Remove quotes from value
-        let cleanedValue = removeQuotes(from: valuePart)
-        
-        // Extract inline comment if present
+        let cleanedValue = removeQuotes(from: String(valuePart))
         let (cleanValue, comment) = extractComment(from: cleanedValue)
         
-        return EnvVariable(
+        return ConfigItem(
+            type: .environmentVariable,
             name: namePart,
             value: cleanValue,
             lineNumber: lineNumber,
@@ -94,21 +232,17 @@ class ConfigFileParser {
         )
     }
     
-    /// Remove surrounding quotes from a string
     private func removeQuotes(from value: String) -> String {
         var result = value
         
-        // Handle double-quoted strings
         if result.hasPrefix("\"") && result.hasSuffix("\"") && result.count >= 2 {
             result = String(result.dropFirst().dropLast())
-            // Unescape common escape sequences
             result = result.replacingOccurrences(of: "\\\"", with: "\"")
             result = result.replacingOccurrences(of: "\\$", with: "$")
             result = result.replacingOccurrences(of: "\\n", with: "\n")
             result = result.replacingOccurrences(of: "\\t", with: "\t")
         }
         
-        // Handle single-quoted strings
         if result.hasPrefix("'") && result.hasSuffix("'") && result.count >= 2 {
             result = String(result.dropFirst().dropLast())
         }
@@ -116,19 +250,15 @@ class ConfigFileParser {
         return result
     }
     
-    /// Extract inline comment from value
     private func extractComment(from value: String) -> (value: String, comment: String?) {
-        // Find # that is not inside quotes
         guard let hashIndex = value.firstIndex(of: "#") else {
             return (value, nil)
         }
         
-        // Check if # is inside quotes
         let beforeHash = String(value[..<hashIndex])
         let beforeQuotesCount = beforeHash.filter { $0 == "\"" || $0 == "'" }.count
         
         if beforeQuotesCount % 2 == 0 {
-            // # is not inside quotes
             let cleanValue = String(value[..<hashIndex]).trimmingCharacters(in: .whitespaces)
             let comment = String(value[value.index(after: hashIndex)...]).trimmingCharacters(in: .whitespaces)
             return (cleanValue, comment.isEmpty ? nil : comment)

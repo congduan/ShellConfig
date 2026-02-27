@@ -1,87 +1,173 @@
 import Foundation
 import Combine
+import AppKit
 
-/// ViewModel for environment variable list
 class EnvVariableViewModel: ObservableObject {
     @Published var variables: [EnvVariable] = []
     @Published var filteredVariables: [EnvVariable] = []
     @Published var searchText: String = ""
     @Published var selectedVariable: EnvVariable?
+    @Published var selectedTypes: Set<ConfigItemType> = Set(ConfigItemType.allCases)
+    @Published var showAddSheet: Bool = false
+    @Published var showDeleteConfirmation: Bool = false
+    @Published var variableToDelete: EnvVariable?
+    @Published var editError: String?
+    @Published var showEditError: Bool = false
     
     private var configFile: ConfigFile?
     private var cancellables = Set<AnyCancellable>()
     
     init() {
-        // Set up search filtering
-        $searchText
+        Publishers.CombineLatest($searchText, $selectedTypes)
             .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
-            .sink { [weak self] query in
-                self?.filterVariables(with: query)
+            .sink { [weak self] query, types in
+                self?.filterVariables(with: query, types: types)
             }
             .store(in: &cancellables)
     }
     
-    /// Set the current config file and load its variables
     func setConfigFile(_ configFile: ConfigFile?) {
         self.configFile = configFile
         self.variables = configFile?.variables ?? []
-        filterVariables(with: searchText)
+        filterVariables(with: searchText, types: selectedTypes)
     }
     
-    /// Load all variables
     func loadAllVariables() {
         self.variables = ShellConfigManager.shared.getAllVariables()
-        filterVariables(with: searchText)
+        filterVariables(with: searchText, types: selectedTypes)
     }
     
-    /// Filter variables by search query
-    private func filterVariables(with query: String) {
-        guard !query.isEmpty else {
-            filteredVariables = variables
-            return
-        }
-        
-        let lowercasedQuery = query.lowercased()
-        
-        filteredVariables = variables.filter { variable in
-            variable.name.lowercased().contains(lowercasedQuery) ||
-            variable.value.lowercased().contains(lowercasedQuery) ||
-            (variable.comment?.lowercased().contains(lowercasedQuery) ?? false)
+    func toggleType(_ type: ConfigItemType) {
+        if selectedTypes.contains(type) {
+            if selectedTypes.count > 1 {
+                selectedTypes.remove(type)
+            }
+        } else {
+            selectedTypes.insert(type)
         }
     }
     
-    /// Clear search
+    func selectAllTypes() {
+        selectedTypes = Set(ConfigItemType.allCases)
+    }
+    
+    private func filterVariables(with query: String, types: Set<ConfigItemType>) {
+        var result = variables.filter { types.contains($0.type) }
+        
+        if !query.isEmpty {
+            let lowercasedQuery = query.lowercased()
+            result = result.filter { variable in
+                variable.name.lowercased().contains(lowercasedQuery) ||
+                variable.value.lowercased().contains(lowercasedQuery) ||
+                (variable.comment?.lowercased().contains(lowercasedQuery) ?? false)
+            }
+        }
+        
+        filteredVariables = result
+    }
+    
     func clearSearch() {
         searchText = ""
     }
     
-    /// Get variable count
     var variableCount: Int {
         filteredVariables.count
     }
     
-    /// Get total count (including filtered out)
     var totalCount: Int {
         variables.count
     }
     
-    /// Check if showing filtered results
     var isFiltered: Bool {
-        !searchText.isEmpty && filteredVariables.count != variables.count
+        !searchText.isEmpty || selectedTypes.count < ConfigItemType.allCases.count
     }
     
-    /// Copy variable name to clipboard
+    func typeCount(_ type: ConfigItemType) -> Int {
+        variables.filter { $0.type == type }.count
+    }
+    
     func copyName(_ variable: EnvVariable) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(variable.name, forType: .string)
     }
     
-    /// Copy variable value to clipboard
     func copyValue(_ variable: EnvVariable) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(variable.value, forType: .string)
     }
+    
+    func addVariable(_ newVariable: EnvVariable) {
+        guard let config = configFile else { return }
+        
+        let result = ConfigFileEditor.shared.addConfigItem(newVariable, to: config.path)
+        
+        switch result {
+        case .success:
+            ShellConfigManager.shared.refresh()
+            if let updatedConfig = findUpdatedConfig(for: config.path) {
+                setConfigFile(updatedConfig)
+            }
+            
+        case .failure(let error):
+            editError = error.errorDescription
+            showEditError = true
+        }
+    }
+    
+    func deleteVariable(_ variable: EnvVariable) {
+        guard let config = configFile else { return }
+        
+        let result = ConfigFileEditor.shared.deleteConfigItem(at: variable.lineNumber, from: config.path)
+        
+        switch result {
+        case .success:
+            ShellConfigManager.shared.refresh()
+            if let updatedConfig = findUpdatedConfig(for: config.path) {
+                setConfigFile(updatedConfig)
+            }
+            
+        case .failure(let error):
+            editError = error.errorDescription
+            showEditError = true
+        }
+    }
+    
+    func confirmDelete(_ variable: EnvVariable) {
+        variableToDelete = variable
+        showDeleteConfirmation = true
+    }
+    
+    func executeDelete() {
+        guard let variable = variableToDelete else { return }
+        deleteVariable(variable)
+        variableToDelete = nil
+    }
+    
+    func openInEditor() {
+        guard let config = configFile else { return }
+        let expandedPath = NSString(string: config.path).expandingTildeInPath
+        NSWorkspace.shared.openFile(expandedPath, withApplication: "TextEdit")
+    }
+    
+    func openInTerminal() {
+        guard let config = configFile else { return }
+        let expandedPath = NSString(string: config.path).expandingTildeInPath
+        let url = URL(fileURLWithPath: expandedPath)
+        NSWorkspace.shared.openFile(url.deletingLastPathComponent().path, withApplication: "Terminal")
+    }
+    
+    private func findUpdatedConfig(for path: String) -> ConfigFile? {
+        for shell in ShellConfigManager.shared.shells {
+            for config in shell.configFiles {
+                if config.path == path {
+                    return config
+                }
+            }
+        }
+        return nil
+    }
+    
+    var currentConfigPath: String? {
+        configFile?.path
+    }
 }
-
-// Import AppKit for NSPasteboard
-import AppKit
