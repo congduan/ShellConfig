@@ -9,8 +9,10 @@ class EnvVariableViewModel: ObservableObject {
     @Published var selectedVariable: EnvVariable?
     @Published var selectedTypes: Set<ConfigItemType> = Set(ConfigItemType.allCases)
     @Published var showAddSheet: Bool = false
+    @Published var showEditSheet: Bool = false
     @Published var showDeleteConfirmation: Bool = false
     @Published var variableToDelete: EnvVariable?
+    @Published var variableToEdit: EnvVariable?
     @Published var editError: String?
     @Published var showEditError: Bool = false
     
@@ -114,6 +116,31 @@ class EnvVariableViewModel: ObservableObject {
         }
     }
     
+    func updateVariable(_ updatedVariable: EnvVariable) {
+        guard let config = configFile,
+              let originalVariable = variableToEdit else { return }
+        
+        let result = ConfigFileEditor.shared.updateConfigItem(
+            at: originalVariable.lineNumber,
+            in: config.path,
+            with: updatedVariable
+        )
+        
+        switch result {
+        case .success:
+            ShellConfigManager.shared.refresh()
+            if let updatedConfig = findUpdatedConfig(for: config.path) {
+                setConfigFile(updatedConfig)
+            }
+            
+        case .failure(let error):
+            editError = error.errorDescription
+            showEditError = true
+        }
+        
+        variableToEdit = nil
+    }
+    
     func deleteVariable(_ variable: EnvVariable) {
         guard let config = configFile else { return }
         
@@ -141,6 +168,11 @@ class EnvVariableViewModel: ObservableObject {
         guard let variable = variableToDelete else { return }
         deleteVariable(variable)
         variableToDelete = nil
+    }
+    
+    func startEdit(_ variable: EnvVariable) {
+        variableToEdit = variable
+        showEditSheet = true
     }
     
     func openInEditor() {

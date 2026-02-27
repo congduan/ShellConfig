@@ -33,6 +33,7 @@ struct EnvVariableListView: View {
                                     variable: variable,
                                     onCopyName: { viewModel.copyName(variable) },
                                     onCopyValue: { viewModel.copyValue(variable) },
+                                    onEdit: { viewModel.startEdit(variable) },
                                     onDelete: { viewModel.confirmDelete(variable) }
                                 )
                             }
@@ -53,6 +54,11 @@ struct EnvVariableListView: View {
         .frame(minWidth: 400)
         .sheet(isPresented: $viewModel.showAddSheet) {
             AddConfigItemSheet(viewModel: viewModel)
+        }
+        .sheet(isPresented: $viewModel.showEditSheet) {
+            if let variable = viewModel.variableToEdit {
+                EditConfigItemSheet(viewModel: viewModel, variable: variable)
+            }
         }
         .alert("Delete Configuration Item?", isPresented: $viewModel.showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {

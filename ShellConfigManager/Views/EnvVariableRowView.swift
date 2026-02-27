@@ -4,6 +4,7 @@ struct EnvVariableRowView: View {
     let variable: EnvVariable
     let onCopyName: () -> Void
     let onCopyValue: () -> Void
+    let onEdit: () -> Void
     let onDelete: () -> Void
     
     @State private var isHovered = false
@@ -42,6 +43,7 @@ struct EnvVariableRowView: View {
                                 onCopyValue()
                                 showCopiedValue = true
                             },
+                            onEdit: onEdit,
                             onDelete: onDelete,
                             showCopiedName: $showCopiedName,
                             showCopiedValue: $showCopiedValue
@@ -143,6 +145,7 @@ struct LineNumberBadge: View {
 struct ActionButtons: View {
     let onCopyName: () -> Void
     let onCopyValue: () -> Void
+    let onEdit: () -> Void
     let onDelete: () -> Void
     @Binding var showCopiedName: Bool
     @Binding var showCopiedValue: Bool
@@ -161,6 +164,13 @@ struct ActionButtons: View {
                 label: showCopiedValue ? "Copied" : "Value",
                 color: showCopiedValue ? .green : .secondary,
                 action: onCopyValue
+            )
+            
+            ActionButton(
+                icon: "pencil",
+                label: "Edit",
+                color: .blue,
+                action: onEdit
             )
             
             ActionButton(

@@ -11,8 +11,10 @@ struct SidebarView: View {
                 ForEach(viewModel.shells) { shell in
                     ShellSectionView(
                         shell: shell,
-                        isExpanded: viewModel.isExpanded(shell),
-                        onToggle: { viewModel.toggleExpansion(for: shell) },
+                        isExpanded: Binding(
+                            get: { viewModel.isExpanded(shell) },
+                            set: { _ in viewModel.toggleExpansion(for: shell) }
+                        ),
                         onSelectConfig: { config in viewModel.selectConfigFile(config) },
                         onDeleteConfig: { config in viewModel.confirmDeleteConfigFile(config) },
                         onAddConfig: { viewModel.showAddFileSheet(for: shell.type) },
@@ -80,53 +82,61 @@ struct SidebarView: View {
 
 struct ShellSectionView: View {
     let shell: Shell
-    let isExpanded: Bool
-    let onToggle: () -> Void
+    @Binding var isExpanded: Bool
     let onSelectConfig: (ConfigFile) -> Void
     let onDeleteConfig: (ConfigFile) -> Void
     let onAddConfig: () -> Void
     let selectedConfigFile: ConfigFile?
     
     var body: some View {
-        Section {
-            ForEach(shell.configFiles.filter { $0.exists }) { config in
-                ConfigFileRowView(
-                    configFile: config,
-                    isSelected: selectedConfigFile?.id == config.id,
-                    onDelete: { onDeleteConfig(config) }
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 0) {
+                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.secondary)
+                    .frame(width: 20, height: 36)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        isExpanded.toggle()
+                    }
+                
+                ShellSectionHeader(
+                    shell: shell,
+                    configCount: shell.configFiles.filter { $0.exists }.count,
+                    onAdd: onAddConfig
                 )
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    onSelectConfig(config)
+                    isExpanded.toggle()
                 }
-                .tag(config)
             }
-        } header: {
-            ShellSectionHeader(
-                shell: shell,
-                isExpanded: isExpanded,
-                configCount: shell.configFiles.filter { $0.exists }.count,
-                onToggle: onToggle,
-                onAdd: onAddConfig
-            )
+            
+            if isExpanded {
+                ForEach(shell.configFiles.filter { $0.exists }) { config in
+                    ConfigFileRowView(
+                        configFile: config,
+                        isSelected: selectedConfigFile?.id == config.id,
+                        onDelete: { onDeleteConfig(config) }
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        onSelectConfig(config)
+                    }
+                    .tag(config)
+                }
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: isExpanded)
     }
 }
 
 struct ShellSectionHeader: View {
     let shell: Shell
-    let isExpanded: Bool
     let configCount: Int
-    let onToggle: () -> Void
     let onAdd: () -> Void
     
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundColor(.secondary)
-                .frame(width: 12)
-            
             ZStack {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(shellColor.opacity(0.15))
@@ -167,9 +177,7 @@ struct ShellSectionHeader: View {
                     .cornerRadius(10)
             }
         }
-        .padding(.vertical, 4)
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onToggle)
+        .frame(height: 36)
     }
     
     private var shellColor: Color {
